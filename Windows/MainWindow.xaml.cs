@@ -119,7 +119,7 @@ namespace MHW_Editor.Windows {
         const int SW_HIDE = 0;
         const int SW_SHOW = 5;
 
-        public bool isConsole = false;
+        public static bool isConsole = false;
 
         public MainWindow()
         {
@@ -401,12 +401,20 @@ namespace MHW_Editor.Windows {
             // Look for known bad hashes first to ensure it's not an unedited file from a previous chunk.
             foreach (var pair in DataHelper.BAD_FILE_HASH_MAP) {
                 foreach (var fileAndHash in pair.Value) {
-                    if (fileName == fileAndHash.Key && fileAndHash.Value.Contains(sha512)) {
+                    if (fileName == fileAndHash.Key && fileAndHash.Value.Contains(sha512))
+                    {
                         var newChunk = DataHelper.GOOD_CHUNK_MAP.TryGet(fileName);
-                        MessageBox.Show($"This file ({fileName}) is from {pair.Key} and is obsolete.\r\n" +
+                        var errortext = $"This file ({fileName}) is from {pair.Key} and is obsolete.\r\n" +
                                         $"The newest version of the file is in {newChunk}.\r\n\r\n" +
                                         "Using obsolete files is known to cause anything from blackscreens to crashes or incorrect data.\r\n\r\n" +
-                                        "The editor will attempt to load the file, but understand, it may fail due to obsolete data.", "Obsolete File Detected", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                        "The editor will attempt to load the file, but understand, it may fail due to obsolete data.";
+                        if (MainWindow.isConsole)
+                        {
+                            Console.WriteLine("Obsolete File Detected: " + errortext);
+                        }
+                        else { 
+                        MessageBox.Show(errortext, "Obsolete File Detected", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                         return;
                     }
                 }
@@ -415,10 +423,19 @@ namespace MHW_Editor.Windows {
             // Length check as a fallback.
             if (targetFileLength == properLength) return;
 
-            MessageBox.Show($"The file size of {fileName} does not match the known file size in v{Global.CURRENT_GAME_VERSION}.\r\n" +
+            var errortext2 = $"The file size of {fileName} does not match the known file size in v{Global.CURRENT_GAME_VERSION}.\r\n" +
                             $"Expected: {properLength}\r\n" +
                             $"Found: {targetFileLength}\r\n" +
-                            "Please make sure you've extracted the file from the highest numbered chunk that contains it.", "File Size Mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            "Please make sure you've extracted the file from the highest numbered chunk that contains it.";
+            if (MainWindow.isConsole)
+            {
+                Console.WriteLine("File Size Mismatch" + errortext2);
+            }
+            else
+            {
+
+                MessageBox.Show(errortext2, "File Size Mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         public async void Save() {
@@ -532,9 +549,15 @@ namespace MHW_Editor.Windows {
                 var       otherFileLength = (ulong) otherFile.Length;
 
                 if (otherFileLength != targetFileLength) {
-                    MessageBox.Show($"The file size of {otherFileName} does not match the file size of our current file.\r\n" +
-                                    $"Cannot guess changes since they aren't from the same chunk.", "File Size Mismatch", MessageBoxButton.OK, MessageBoxImage.Error);
 
+                    var errortext = $"The file size of {otherFileName} does not match the file size of our current file.\r\n" +
+                                    $"Cannot guess changes since they aren't from the same chunk.";
+                    if (isConsole) {
+                        Console.WriteLine("File Size Mismatch" + errortext);
+                    }
+                    else { 
+                        MessageBox.Show(errortext, "File Size Mismatch", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                     return;
                 }
 
@@ -686,12 +709,20 @@ namespace MHW_Editor.Windows {
                         "UniqueId",
                         "ChangedItems",
                         "BytesSkipped",
-                        "Raw_Bytes_raw"
+                        "Raw_Bytes_raw"                 
+                    };
+                    // skip header blocks too.
+                    string[] skipStruct = {
+                        "Header"                 
                     };
 
-                    if (everything && item != null)
+                    if (
+                        everything
+                        && item != null
+                        && !skipStruct.Contains(itemType.Name)
+                        )
                     {
-                        foreach (var prop in item.GetType().GetProperties())
+                        foreach (var prop in itemType.GetProperties())
                         {
                             if (
                                 skipProps.Contains(prop.Name)
@@ -706,18 +737,21 @@ namespace MHW_Editor.Windows {
                     }
 
                     var structTypeName = itemType.Name;
-                    var changed        = item.ChangedItems;
+                    var changed = item.ChangedItems;
                     if (changed.Count == 0) continue;
 
-                    if (!changesToSave.changesV3.ContainsKey(structTypeName)) {
+                    if (!changesToSave.changesV3.ContainsKey(structTypeName))
+                    {
                         changesToSave.changesV3[structTypeName] = new Dictionary<string, Dictionary<string, object>>();
                     }
 
-                    if (!changesToSave.changesV3[structTypeName].ContainsKey(itemUniqueId)) {
+                    if (!changesToSave.changesV3[structTypeName].ContainsKey(itemUniqueId))
+                    {
                         changesToSave.changesV3[structTypeName][itemUniqueId] = new Dictionary<string, object>();
                     }
 
-                    foreach (var changedItem in changed) {
+                    foreach (var changedItem in changed)
+                    {
                         // Ignore. it's always 'changed' since it's computed.
                         if (changedItem == nameof(IMhwStructItem.Index)) continue;
 
@@ -726,6 +760,7 @@ namespace MHW_Editor.Windows {
                         changesToSave.changesV3[structTypeName][itemUniqueId][changedItem] = value;
                     }
                 }
+
 
                 // Removes empty entries.
                 CleanDictionary(changesToSave.changesV3);
@@ -936,13 +971,19 @@ namespace MHW_Editor.Windows {
         }
 
         public static void ShowError(Exception err, string title) {
+           
             var errMsg = "Error occurred. Press Ctrl+C to copy the contents of th.s window and report to the developer.\r\n\r\n";
 
             if (title == "Load Error") {
                 errMsg += "If this is the result of ignoring the obsolete data warning, it is safe to ignore.\r\n\r\n";
             }
-  
-            MessageBox.Show(errMsg + err, title, MessageBoxButton.OK, MessageBoxImage.Error);
+            if (false == MainWindow.isConsole)
+            {
+                MessageBox.Show(errMsg + err, title, MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            else {
+                Console.WriteLine(errMsg + err);
+            }
         }
 
         protected override void OnClosed(EventArgs e) {
