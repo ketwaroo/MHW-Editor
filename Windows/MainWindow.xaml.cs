@@ -31,9 +31,11 @@ using MHW_Editor.Util;
 using MHW_Template;
 using Microsoft.Win32;
 using Newtonsoft.Json;
+using System.Runtime.InteropServices;
 
 namespace MHW_Editor.Windows {
-    public partial class MainWindow {
+    public partial class MainWindow
+    {
 #if DEBUG
         private const bool ENABLE_CHEAT_BUTTONS = true;
 #else
@@ -47,19 +49,22 @@ namespace MHW_Editor.Windows {
 
         [CanBeNull] private CancellationTokenSource savedTimer;
 
-        public         string              targetFile     { get; private set; }
-        public         Type                targetFileType { get; private set; }
-        private static ulong               targetFileLength;
-        private        IMhwMultiStructFile fileData;
+        public string targetFile { get; set; }
+        public Type targetFileType { get; set; }
+        private static ulong targetFileLength;
+        private IMhwMultiStructFile fileData;
 
         public bool unlockFields { get; }
 
         public static string locale = "eng";
-        public string Locale {
+        public string Locale
+        {
             get => locale;
-            set {
+            set
+            {
                 locale = value;
-                foreach (var item in fileData.GetAllEnumerableOfType<IOnPropertyChanged>()) {
+                foreach (var item in fileData.GetAllEnumerableOfType<IOnPropertyChanged>())
+                {
                     item.OnPropertyChanged("Name",
                                            nameof(SkillDat.Entries.Description),
                                            nameof(MusicSkill.Entries.Song_And_Id),
@@ -69,10 +74,14 @@ namespace MHW_Editor.Windows {
                     item.OnPropertyChanged(ButtonTypeInfo.BUTTON_NAMES);
                 }
 
-                foreach (UIElement child in sub_grids.Children) {
-                    if (child is MhwDataGrid grid) {
-                        foreach (var entry in grid.ItemsSource) {
-                            if (entry is IOnPropertyChanged propEntry) {
+                foreach (UIElement child in sub_grids.Children)
+                {
+                    if (child is MhwDataGrid grid)
+                    {
+                        foreach (var entry in grid.ItemsSource)
+                        {
+                            if (entry is IOnPropertyChanged propEntry)
+                            {
                                 // ReSharper disable once UseNameofExpression
                                 propEntry.OnPropertyChanged("Name");
                             }
@@ -83,11 +92,14 @@ namespace MHW_Editor.Windows {
         }
 
         public static bool showIdBeforeName = true;
-        public bool ShowIdBeforeName {
+        public bool ShowIdBeforeName
+        {
             get => showIdBeforeName;
-            set {
+            set
+            {
                 showIdBeforeName = value;
-                foreach (var item in fileData.GetAllEnumerableOfType<IOnPropertyChanged>()) {
+                foreach (var item in fileData.GetAllEnumerableOfType<IOnPropertyChanged>())
+                {
                     item.OnPropertyChanged(nameof(MusicSkill.Entries.Song_And_Id));
 
                     item.OnPropertyChanged(ButtonTypeInfo.BUTTON_NAMES);
@@ -97,32 +109,87 @@ namespace MHW_Editor.Windows {
 
         public bool SingleClickToEditMode { get; set; } = true;
 
-        public MainWindow() {
-            var args = Environment.GetCommandLineArgs();
+        // To hide console window if running as win app.
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetConsoleWindow();
 
-            if (args.Length >= 2) {
-                if (args.ContainsIgnoreCase("-unlock")) {
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        const int SW_HIDE = 0;
+        const int SW_SHOW = 5;
+
+        public bool isConsole = false;
+
+        public MainWindow()
+        {
+            var args = Environment.GetCommandLineArgs();
+            var consoleWindowHandle = GetConsoleWindow();
+
+            if (
+                args.Length == 4
+                && args[2].Contains("-export")
+                )
+            {
+
+                isConsole = true;
+                targetFile = args[1];
+                LoadHeadless();
+                var saveTargetFile = args[3];
+                SaveJson(false, true, saveTargetFile);
+                Close();
+                return;
+            }
+
+            if (
+                args.Length == 4
+                && args[2].Contains("-import")
+                )
+            {
+                isConsole = true;
+                targetFile = args[1];
+                var jsonfile = args[3];
+                LoadHeadless();
+                LoadJson(jsonfile);
+                Save();
+                Close();
+                return;
+            }
+
+            if (!isConsole)
+            {
+                ShowWindow(consoleWindowHandle, SW_HIDE);
+            }
+            if (args.Length >= 2)
+            {
+                if (args.ContainsIgnoreCase("-unlock"))
+                {
                     unlockFields = true;
                 }
             }
 
-            if (args.Length >= 4) {
-                try {
-                    if (args.ContainsIgnoreCase("-decrypt") || args.ContainsIgnoreCase("-encrypt")) {
-                        var action  = args[1].ToLower();
-                        var inFile  = args[2];
+            if (args.Length >= 4)
+            {
+                try
+                {
+                    if (args.ContainsIgnoreCase("-decrypt") || args.ContainsIgnoreCase("-encrypt"))
+                    {
+                        var action = args[1].ToLower();
+                        var inFile = args[2];
                         var outFile = args[3];
 
                         var ext = Path.GetExtension(inFile);
                         var key = args.Length == 5 ? args[4] : EncryptionKeys.FILE_EXT_KEY_LOOKUP.TryGet(ext, null);
 
-                        if (key == null) {
+                        if (key == null)
+                        {
                             MessageBox.Show($"Unknown Key for: {ext}", "Unknown Key", MessageBoxButton.OK, MessageBoxImage.Error);
                             Close();
                             return;
                         }
 
-                        switch (action) {
+                        switch (action)
+                        {
                             case "-decrypt":
                                 EncryptionHelper.Decrypt(key, inFile, outFile);
                                 break;
@@ -131,7 +198,9 @@ namespace MHW_Editor.Windows {
                                 break;
                         }
                     }
-                } catch (Exception e) {
+                }
+                catch (Exception e)
+                {
                     ShowError(e, "Error");
                 }
 
@@ -144,16 +213,18 @@ namespace MHW_Editor.Windows {
 
             cbx_localization.ItemsSource = Global.LANGUAGE_NAME_LOOKUP;
 
-            Width  = SystemParameters.MaximizedPrimaryScreenWidth * 0.8;
+            Width = SystemParameters.MaximizedPrimaryScreenWidth * 0.8;
             Height = SystemParameters.MaximizedPrimaryScreenHeight * 0.5;
 
-            UpdateCheck.Run(this);
+            // Disable update check
+            // UpdateCheck.Run(this);
 
             TryLoad(args);
         }
-
-        private async void TryLoad(string[] args) {
-            if (args.Length >= 2) {
+        private async void TryLoad(string[] args)
+        {
+            if (args.Length >= 2)
+            {
                 var file = args.Last();
                 if (file.StartsWith("-")) return;
 
@@ -163,8 +234,9 @@ namespace MHW_Editor.Windows {
             }
         }
 
-        private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e) {
-            var scv = (ScrollViewer) sender;
+        private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            var scv = (ScrollViewer)sender;
             scv.ScrollToVerticalOffset(scv.VerticalOffset - e.Delta);
             e.Handled = true;
         }
@@ -224,7 +296,7 @@ namespace MHW_Editor.Windows {
             }
         }
 
-        private void Load(string file = null) {
+        public void Load(string file = null) {
             try {
                 var target = file ?? GetOpenTarget($"MHW Data Files (See mod description for full list.)|{string.Join(";", Global.FILE_TYPES)}");
                 if (string.IsNullOrEmpty(target)) return;
@@ -251,7 +323,21 @@ namespace MHW_Editor.Windows {
             }
         }
 
-        private void LoadTarget() {
+        // sort of allows loading data without loading the whole window app..
+        public void LoadHeadless()
+        {
+
+            if (string.IsNullOrEmpty(targetFile)) return;
+            targetFileType = GetFileType(targetFile);
+            Title = Path.GetFileName(targetFile);
+            CheckHashAndSize(targetFile);
+
+            var loadData = targetFileType.GetMethod("LoadData", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
+            Debug.Assert(loadData != null, nameof(loadData) + " != null");
+            fileData = (IMhwMultiStructFile)loadData.Invoke(null, new object[] { targetFile });
+        }
+
+        public void LoadTarget() {
             CheckHashAndSize(targetFile);
 
             var loadData = targetFileType.GetMethod("LoadData", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
@@ -335,16 +421,19 @@ namespace MHW_Editor.Windows {
                             "Please make sure you've extracted the file from the highest numbered chunk that contains it.", "File Size Mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
-        private async void Save() {
+        public async void Save() {
             if (string.IsNullOrEmpty(targetFile)) return;
 
             try {
                 var saveData = targetFileType.GetMethod("SaveData", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
                 Debug.Assert(saveData != null, nameof(saveData) + " != null");
-                saveData.Invoke(null, new object[] {fileData, targetFile});
-
-                await ShowChangesSaved(true);
-            } catch (Exception e) when (!Debugger.IsAttached) {
+                saveData.Invoke(null, new object[] { fileData, targetFile });
+                Console.Out.WriteLine("Saving " + targetFile);
+                if (!isConsole)
+                    await ShowChangesSaved(true);
+            }
+            catch (Exception e) when (!Debugger.IsAttached)
+            {
                 ShowError(e, "Save Error");
             }
         }
@@ -431,7 +520,7 @@ namespace MHW_Editor.Windows {
                                                  || ButtonTypeInfo.TYPES_WITH_BUTTONS.Contains(targetFileType.Name)).VisibleIfTrue();
         }
 
-        private void CreateJson() {
+        public void CreateJson() {
             if (string.IsNullOrEmpty(targetFile)) return;
 
             try {
@@ -477,11 +566,12 @@ namespace MHW_Editor.Windows {
             }
         }
 
-        private void LoadJson() {
+        public void LoadJson(string jsonfile = null) {
             if (string.IsNullOrEmpty(targetFile)) return;
 
-            try {
-                var target = GetOpenTarget($"JSON|*{Path.GetExtension(targetFile)}.json");
+            try
+            {
+                var target = jsonfile ?? GetOpenTarget($"JSON|*{Path.GetExtension(targetFile)}.json");
                 if (string.IsNullOrEmpty(target)) return;
 
                 var fileName = Path.GetFileName(targetFile);
@@ -528,12 +618,14 @@ namespace MHW_Editor.Windows {
                         }
                     }
                 }
-
-                foreach (UIElement child in sub_grids.Children) {
-                    if (child is MhwDataGrid mhwGrid) {
-                        foreach (var type in mhwGrid.GetType().GenericTypeArguments) {
-                            if (type.Is(typeof(MultiStructItemCustomView))) {
-                                mhwGrid.Refresh();
+                if (!isConsole)
+                {
+                    foreach (UIElement child in sub_grids.Children) {
+                        if (child is MhwDataGrid mhwGrid) {
+                            foreach (var type in mhwGrid.GetType().GenericTypeArguments) {
+                                if (type.Is(typeof(MultiStructItemCustomView))) {
+                                    mhwGrid.Refresh();
+                                }
                             }
                         }
                     }
@@ -553,7 +645,7 @@ namespace MHW_Editor.Windows {
             return $"^{string.Join(@"\|", split)}$";
         }
 
-        private async void SaveJson(bool mergeWithTarget) {
+        public async void SaveJson(bool mergeWithTarget, bool everything = false, string saveTarget = null) {
             if (string.IsNullOrEmpty(targetFile)) return;
 
             try {
@@ -583,9 +675,36 @@ namespace MHW_Editor.Windows {
                 changesToSave.changesV3 ??= new Dictionary<string, Dictionary<string, Dictionary<string, object>>>();
 
                 // For all entries in all structs as a single enumerable.
-                foreach (var item in fileData.GetAllEnumerableOfType<IJsonItem>()) {
-                    var itemUniqueId   = item.UniqueId;
-                    var itemType       = item.GetType();
+                foreach (var item in fileData.GetAllEnumerableOfType<IJsonItem>())
+                {
+                    var itemUniqueId = item.UniqueId;
+                    var itemType = item.GetType();
+
+                    // Forces everything to be marked as "changed"
+                    string[] skipProps = {
+                        "Index",
+                        "UniqueId",
+                        "ChangedItems",
+                        "BytesSkipped",
+                        "Raw_Bytes_raw"
+                    };
+
+                    if (everything && item != null)
+                    {
+                        foreach (var prop in item.GetType().GetProperties())
+                        {
+                            if (
+                                skipProps.Contains(prop.Name)
+                                || (prop.Name).EndsWith("_raw")
+                                )
+                            {
+                                continue;
+                            }
+
+                            item.ChangedItems.Add(prop.Name);
+                        }
+                    }
+
                     var structTypeName = itemType.Name;
                     var changed        = item.ChangedItems;
                     if (changed.Count == 0) continue;
@@ -613,18 +732,29 @@ namespace MHW_Editor.Windows {
 
                 if (changesToSave.changesV3.Any()) {
                     // Get file after checking for what to save else we show a dialog even if there are no changes.
-                    var target = GetSaveTarget();
+                    // use save target override if passed.
+                    var target = saveTarget ?? GetSaveTarget();
+
                     if (string.IsNullOrEmpty(target)) return;
 
                     var json = JsonConvert.SerializeObject(changesToSave, Formatting.Indented);
-                    File.WriteAllText(target, json);
+                    // Because obviously a microsoft related product wouldn't encode JSON to utf8 by default
+                    // and use BOM marker of all things.....
+                    var encoding = new System.Text.UTF8Encoding(false);
+                    File.WriteAllText(target, json, encoding);
+                    Console.Out.WriteLine("Saving Json " + target);
 
                     // Not `await ShowChangesSaved(changesSaved)` since we may cancel the dialog.
-                    await ShowChangesSaved(true);
-                } else {
-                    await ShowChangesSaved(false);
+                    if (!isConsole)
+                        await ShowChangesSaved(true);
                 }
-            } catch (Exception e) when (!Debugger.IsAttached) {
+                else
+                {
+                    if (!isConsole)
+                        await ShowChangesSaved(false);
+                }
+            }
+            catch (Exception e) when (!Debugger.IsAttached) {
                 ShowError(e, "Save Error");
             }
         }
@@ -633,22 +763,32 @@ namespace MHW_Editor.Windows {
             var toRemove         = new List<string>();
             var effectivelyEmpty = true;
 
-            foreach (var key in dict.Keys) {
+            foreach (var key in dict.Keys)
+            {
                 var value = dict[key];
-                if (((Type) value.GetType()).Is(typeof(IEnumerable))) {
-                    var innerEmpty = false;
-                    if (value.Count > 0) {
-                        innerEmpty = CleanDictionary(value);
-                    }
-                    // We've cleaned, now we check again.
-                    if (value.Count == 0 || innerEmpty) {
-                        toRemove.Add(key);
+                // wrap this in a try/catch to skip weirdness.
+                try
+                {
+                    if (((Type) value.GetType()).Is(typeof(IEnumerable))) {
+                        var innerEmpty = false;
+                        if (value.Count > 0) {
+                            innerEmpty = CleanDictionary(value);
+                        }
+                        // We've cleaned, now we check again.
+                        if (value.Count == 0 || innerEmpty) {
+                            toRemove.Add(key);
+                        } else {
+                            effectivelyEmpty = false;
+                        }
                     } else {
                         effectivelyEmpty = false;
-                    }
-                } else {
-                    effectivelyEmpty = false;
+                    }                }
+                catch
+                {
+                    // nothing
+                    toRemove.Add(key);
                 }
+
             }
 
             foreach (var key in toRemove) {
@@ -801,16 +941,16 @@ namespace MHW_Editor.Windows {
             if (title == "Load Error") {
                 errMsg += "If this is the result of ignoring the obsolete data warning, it is safe to ignore.\r\n\r\n";
             }
-
+  
             MessageBox.Show(errMsg + err, title, MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
         protected override void OnClosed(EventArgs e) {
-            if (UpdateCheck.notifyIcon != null) {
-                UpdateCheck.notifyIcon.Visible = false;
-                UpdateCheck.notifyIcon.Dispose();
-            }
-
+// Disable update check.
+//            if (UpdateCheck.notifyIcon != null) {
+//                UpdateCheck.notifyIcon.Visible = false;
+//                UpdateCheck.notifyIcon.Dispose();
+//            }
             base.OnClosed(e);
         }
     }
