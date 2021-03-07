@@ -103,7 +103,7 @@ namespace MHW_Editor.Controls {
 
                 if (mainWindow.targetFileType.Is(typeof(DecoGradeLottery),
                                                  typeof(DecoLottery),
-                                                 typeof(ItemLottery),
+                                                 // typeof(ItemLottery),
                                                  typeof(KulveGradeLottery),
                                                  typeof(QuestReward),
                                                  typeof(SafiItemGradeLottery))) {
@@ -642,14 +642,6 @@ namespace MHW_Editor.Controls {
                     item.Grade_3_percent = item.Grade_3 > 0f ? (float) item.Grade_3 / total : 0f;
                     item.Grade_4_percent = item.Grade_4 > 0f ? (float) item.Grade_4 / total : 0f;
                     item.Grade_5_percent = item.Grade_5 > 0f ? (float) item.Grade_5 / total : 0f;
-                }
-            } else if (typeof(T).Is(typeof(ItemLottery.InnerItem))) {
-                var total = items.Select(item => (ItemLottery.InnerItem) (object) item)
-                                 .Aggregate(0u, (current, item) => current + item.itemWeight);
-
-                foreach (var item in items) {
-                    var x = (ItemLottery.InnerItem) (object) item;
-                    x.itemWeight_percent = x.itemWeight > 0f ? (float) x.itemWeight / total : 0f;
                 }
             } else if (typeof(T).Is(typeof(QuestReward.QuestRewardCustomView))) {
                 var total = items.Select(item => (QuestReward.QuestRewardCustomView) (object) item)

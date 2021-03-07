@@ -42,7 +42,7 @@ namespace MHW_Editor.Windows {
         private const bool ENABLE_CHEAT_BUTTONS = false;
         public const bool SHOW_RAW_BYTES = false;
 #endif
-        private const string TITLE     = "MHW Editor";
+        private const string TITLE     = "MHW Editor for 15.11.00";
         public const  double FONT_SIZE = 20;
 
         public static LangMap skillDatLookup = new LangMap();
@@ -357,9 +357,9 @@ namespace MHW_Editor.Windows {
                 case Ranged ranged:
                     ranged.Init(targetFile);
                     break;
-                case ItemLottery itemLottery:
-                    itemLottery.Init(targetFile);
-                    break;
+             //   case ItemLottery itemLottery:
+             //       itemLottery.Init(targetFile);
+             //       break;
                 case SkillDat skillDat:
                     FillSkillDatDictionary(skillDat.GetSingleStructList());
                     break;
@@ -752,12 +752,19 @@ namespace MHW_Editor.Windows {
 
                     foreach (var changedItem in changed)
                     {
-                        // Ignore. it's always 'changed' since it's computed.
-                        if (changedItem == nameof(IMhwStructItem.Index)) continue;
+                        try
+                        {
+                            // Ignore. it's always 'changed' since it's computed.
+                            if (changedItem == nameof(IMhwStructItem.Index)) continue;
 
-                        // ReSharper disable once PossibleNullReferenceException
-                        var value = itemType.GetProperty(changedItem, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetValue(item);
-                        changesToSave.changesV3[structTypeName][itemUniqueId][changedItem] = value;
+                            // ReSharper disable once PossibleNullReferenceException
+                            var value = itemType.GetProperty(changedItem, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetValue(item);
+                            changesToSave.changesV3[structTypeName][itemUniqueId][changedItem] = value;
+                        }
+                        catch { 
+                        // do nothing?
+                        }
+
                     }
                 }
 
