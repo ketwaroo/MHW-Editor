@@ -727,6 +727,8 @@ namespace MHW_Editor.Windows {
                             if (
                                 skipProps.Contains(prop.Name)
                                 || (prop.Name).EndsWith("_raw")
+                                || (prop.Name).EndsWith("_offset")
+                                || (prop.Name).StartsWith("Unk_")
                                 )
                             {
                                 continue;
