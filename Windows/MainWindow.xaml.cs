@@ -326,15 +326,21 @@ namespace MHW_Editor.Windows {
         // sort of allows loading data without loading the whole window app..
         public void LoadHeadless()
         {
-
+            this.Hide();
+            InitializeComponent();
             if (string.IsNullOrEmpty(targetFile)) return;
-            targetFileType = GetFileType(targetFile);
-            Title = Path.GetFileName(targetFile);
-            CheckHashAndSize(targetFile);
+            Load(targetFile);
 
-            var loadData = targetFileType.GetMethod("LoadData", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
-            Debug.Assert(loadData != null, nameof(loadData) + " != null");
-            fileData = (IMhwMultiStructFile)loadData.Invoke(null, new object[] { targetFile });
+            //if (string.IsNullOrEmpty(targetFile)) return;
+            //targetFileType = GetFileType(targetFile);
+            //Title = Path.GetFileName(targetFile);
+            //CheckHashAndSize(targetFile);
+
+            //var loadData = targetFileType.GetMethod("LoadData", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
+            //Debug.Assert(loadData != null, nameof(loadData) + " != null");
+            //fileData = (IMhwMultiStructFile)loadData.Invoke(null, new object[] { targetFile });
+
+
         }
 
         public void LoadTarget() {
