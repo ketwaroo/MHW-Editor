@@ -711,8 +711,8 @@ namespace MHW_Editor.Windows {
 
                     // Forces everything to be marked as "changed"
                     string[] skipProps = {
-                        "Index",
-                        "UniqueId",
+                        //"Index",
+                        //"UniqueId",
                         "ChangedItems",
                         "BytesSkipped",
                         "Raw_Bytes_raw"                 
