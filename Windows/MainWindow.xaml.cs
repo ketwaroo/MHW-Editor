@@ -734,7 +734,7 @@ namespace MHW_Editor.Windows {
                                 skipProps.Contains(prop.Name)
                                 || (prop.Name).EndsWith("_raw")
                                 || (prop.Name).EndsWith("_offset")
-                                || (prop.Name).StartsWith("Unk_")
+                                //|| (prop.Name).StartsWith("Unk_")
                                 )
                             {
                                 continue;
